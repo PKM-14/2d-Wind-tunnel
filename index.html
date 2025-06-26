@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2D Wind Tunnel Simulation</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: black;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="cfdCanvas" width="512" height="512"></canvas>
+  <script>
+    const canvas = document.getElementById('cfdCanvas');
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const size = width * height;
+
+    const u = new Float32Array(size);
+    const v = new Float32Array(size);
+    const dye = new Uint8ClampedArray(size * 4);
+    const obstacle = new Uint8Array(size);
+    const tempDye = new Uint8ClampedArray(size * 4);
+
+    function index(x, y) {
+      return y * width + x;
+    }
+
+    // Obstacle in center
+    for (let y = 200; y < 312; y++) {
+      for (let x = 200; x < 312; x++) {
+        obstacle[index(x, y)] = 1;
+      }
+    }
+
+    // Initial dye
+    for (let i = 0; i < size; i++) {
+      dye[i * 4 + 0] = 20;
+      dye[i * 4 + 1] = 20;
+      dye[i * 4 + 2] = 60;
+      dye[i * 4 + 3] = 255;
+    }
+
+    function step() {
+      // Move dye by velocity (basic advection)
+      tempDye.set(dye);
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const i = index(x, y);
+          if (obstacle[i]) continue;
+
+          const backX = Math.floor(x - u[i]);
+          const backY = Math.floor(y - v[i]);
+
+          if (backX >= 0 && backX < width && backY >= 0 && backY < height) {
+            const j = index(backX, backY);
+            dye[i * 4 + 0] = tempDye[j * 4 + 0] * 0.98;
+            dye[i * 4 + 1] = tempDye[j * 4 + 1] * 0.98;
+            dye[i * 4 + 2] = tempDye[j * 4 + 2] * 0.98;
+          }
+
+          // decay velocity
+          u[i] *= 0.99;
+          v[i] *= 0.99;
+        }
+      }
+
+      // Draw obstacle and encode velocity as colour
+      for (let i = 0; i < size; i++) {
+        if (obstacle[i]) {
+          dye[i * 4 + 0] = 100;
+          dye[i * 4 + 1] = 100;
+          dye[i * 4 + 2] = 100;
+        } else {
+          const r = Math.min(255, Math.abs(u[i]) * 255);
+          const g = Math.min(255, Math.abs(v[i]) * 255);
+          dye[i * 4 + 0] = Math.max(dye[i * 4 + 0], r);
+          dye[i * 4 + 1] = Math.max(dye[i * 4 + 1], g);
+          dye[i * 4 + 2] = Math.max(dye[i * 4 + 2], 255 - r);
+        }
+        dye[i * 4 + 3] = 255;
+      }
+    }
+
+    function render() {
+      step();
+      const imageData = new ImageData(new Uint8ClampedArray(dye), width, height);
+      ctx.putImageData(imageData, 0, 0);
+      requestAnimationFrame(render);
+    }
+
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      const cx = Math.floor(e.clientX - rect.left);
+      const cy = Math.floor(e.clientY - rect.top);
+      const radius = 4;
+
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const x = cx + dx;
+          const y = cy + dy;
+          if (x >= 0 && x < width && y >= 0 && y < height) {
+            const i = index(x, y);
+            if (!obstacle[i] && dx * dx + dy * dy <= radius * radius) {
+              u[i] += dx * 0.5;
+              v[i] += dy * 0.5;
+            }
+          }
+        }
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
