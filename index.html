@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wind Tunnel Simulation</title>
+  <title>2D Wind Tunnel v2</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
-      background-color: black;
+      background-color: white;
     }
     canvas {
       display: block;
@@ -66,6 +66,19 @@
       dye[i * 4 + 3] = 255;
     }
 
+    function injectInflow() {
+      for (let y = 100; y < 400; y++) {
+        const x = 2;
+        const i = index(x, y);
+        u[i] = 2.0;
+        v[i] = 0.0;
+        dye[i * 4 + 0] = 180;
+        dye[i * 4 + 1] = 50;
+        dye[i * 4 + 2] = 255;
+        dye[i * 4 + 3] = 255;
+      }
+    }
+
     function step() {
       tempDye.set(dye);
 
@@ -83,13 +96,11 @@
             }
           }
 
-          // Simple velocity decay
           u[i] *= 0.985;
           v[i] *= 0.985;
         }
       }
 
-      // Update dye visualization + obstacle shading
       for (let i = 0; i < size; i++) {
         if (obstacle[i]) {
           dye[i * 4 + 0] = 100;
@@ -98,6 +109,8 @@
         }
         dye[i * 4 + 3] = 255;
       }
+
+      injectInflow();
     }
 
     function render() {
